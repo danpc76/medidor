@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1D9E75">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Medidor</title>
+<style>
+:root{--bg:#f4f3ef;--card:#fff;--tx:#1f1f1d;--tx2:#5f5e5a;--bd:#d3d1c7;--ok:#1D9E75;--okbg:#E1F5EE;--okd:#085041;--warn:#BA7517;--err:#A32D2D;--acc:#185FA5}
+@media (prefers-color-scheme:dark){:root{--bg:#18181a;--card:#242426;--tx:#f1efe8;--tx2:#b4b2a9;--bd:#444441;--okbg:#0b3d31;--okd:#9FE1CB}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Roboto,sans-serif;font-size:20px;line-height:1.4}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--bd);padding:10px 12px 0}
+h1{margin:0 0 8px;font-size:24px;font-weight:600}
+.tabs{display:flex;gap:4px}
+.tab{flex:1;border:0;background:none;font-size:18px;padding:10px 4px;color:var(--tx2);border-bottom:3px solid transparent;font-weight:600}
+.tab.on{color:var(--ok);border-color:var(--ok)}
+main{max-width:520px;margin:0 auto;padding:12px}
+section{display:none}section.on{display:block}
+.cam{position:relative;width:100%;aspect-ratio:3/4;max-height:58vh;background:#2c2c2a;border-radius:16px;overflow:hidden}
+.cam video{width:100%;height:100%;object-fit:cover;display:block}
+.cross{position:absolute;inset:0;pointer-events:none}
+.cross:before,.cross:after{content:"";position:absolute;background:#5DCAA5}
+.cross:before{left:0;right:0;top:50%;height:2px;margin-top:-1px}
+.cross:after{top:0;bottom:0;left:50%;width:2px;margin-left:-1px}
+.ring{position:absolute;left:50%;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;border:3px solid #9FE1CB;border-radius:50%}
+.badge{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.6);color:#E1F5EE;padding:6px 12px;border-radius:10px;font-size:24px;font-weight:700}
+.stab{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);color:#F0997B;padding:6px 10px;border-radius:10px;font-size:16px}
+.stab.ok{color:#5DCAA5}
+.inst{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(0,0,0,.6);color:#E1F5EE;padding:10px;border-radius:10px;font-size:19px;text-align:center}
+.start{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#f1efe8;text-align:center;padding:20px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px 14px;margin-top:12px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0}
+.row label{color:var(--tx2);font-size:18px}
+input[type=number],input[type=text]{font-size:22px;padding:8px 10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);width:130px;text-align:right}
+input[type=text]{width:100%;text-align:left}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.met{background:var(--bg);border-radius:12px;padding:10px 12px}
+.met small{display:block;color:var(--tx2);font-size:16px}
+.met b{font-size:32px;font-weight:700}
+.met b.dim{color:var(--tx2);opacity:.6}
+button{font-family:inherit}
+.big{width:100%;min-height:62px;font-size:22px;font-weight:700;border-radius:14px;border:0;background:var(--ok);color:#fff;margin-top:12px}
+.big:disabled{opacity:.45}
+.sec{width:100%;min-height:52px;font-size:19px;border-radius:12px;border:1px solid var(--bd);background:var(--card);color:var(--tx);margin-top:10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two .sec{margin-top:10px}
+.hint{color:var(--tx2);font-size:17px;margin:8px 0 0}
+.chk{display:flex;align-items:center;gap:10px;font-size:18px;margin:10px 0 4px}
+.chk input{width:26px;height:26px}
+.msg{padding:12px;border-radius:12px;background:var(--okbg);color:var(--okd);font-size:18px;margin-top:12px}
+.msg.err{background:#FCEBEB;color:#791F1F}
+.hi{display:flex;gap:10px;align-items:center}
+.hi img{width:72px;height:96px;object-fit:cover;border-radius:8px;flex:none}
+.hi .t{flex:1;min-width:0}
+.hi .t b{font-size:20px}
+.hi .t div{font-size:17px;color:var(--tx2)}
+.del{border:0;background:none;color:var(--err);font-size:26px;padding:6px}
+#arOverlay{display:none;position:fixed;inset:0;z-index:50}
+#arOverlay.on{display:block}
+#arSvg{position:absolute;inset:0;width:100%;height:100%}
+#arInfo{position:absolute;top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;background:rgba(0,0,0,.65);color:#fff;border-radius:14px;padding:10px 14px;font-size:20px}
+#arInfo b{font-size:30px}
+#arBtns{position:absolute;left:10px;right:10px;bottom:calc(14px + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#arBtns button{min-height:58px;font-size:20px;font-weight:700;border-radius:14px;border:0;background:rgba(255,255,255,.92);color:#1f1f1d}
+#arBtns .mark{grid-column:1/3;background:#1D9E75;color:#fff;min-height:68px;font-size:24px}
+</style>
+</head>
+<body>
+<header>
+  <h1>📏 Medidor</h1>
+  <div class="tabs">
+    <button class="tab on" data-s="incl">Inclinación</button>
+    <button class="tab" data-s="ar">AR</button>
+    <button class="tab" data-s="hist">Historial</button>
+  </div>
+</header>
+<main>
+
+<!-- ============ INCLINACIÓN ============ -->
+<section id="incl" class="on">
+  <div class="cam">
+    <video id="vid" playsinline muted autoplay></video>
+    <div class="cross"></div><div class="ring"></div>
+    <div class="badge" id="angBadge">--°</div>
+    <div class="stab" id="stab">moviendo</div>
+    <div class="inst" id="inst">Paso 1: apunta a la base</div>
+    <div class="start" id="startBox">
+      <div style="font-size:22px">Se necesita la cámara y el sensor de inclinación</div>
+      <button class="big" id="btnStart" style="max-width:300px">Activar cámara</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row"><label for="hCel">Altura del celular (m)</label><input id="hCel" type="number" inputmode="decimal" step="0.01" min="0.1" value="1.50"></div>
+    <label class="chk"><input type="checkbox" id="chkD"> Ya conozco la distancia</label>
+    <div class="row" id="rowD" style="display:none"><label for="dMan">Distancia (m)</label><input id="dMan" type="number" inputmode="decimal" step="0.01" min="0.1" value="10"></div>
+
+    <div class="grid">
+      <div class="met"><small>Distancia</small><b id="outD" class="dim">—</b></div>
+      <div class="met"><small>Altura</small><b id="outH" class="dim">—</b></div>
+    </div>
+
+    <button class="big" id="btnMark">🎯 Marcar base</button>
+    <div class="two">
+      <button class="sec" id="btnReset">↺ Reiniciar</button>
+      <button class="sec" id="btnSave" disabled>💾 Guardar</button>
+    </div>
+    <input type="text" id="nameIncl" placeholder="Nombre (ej: chimenea caldera)" style="margin-top:10px">
+    <div id="msgIncl"></div>
+  </div>
+
+  <div class="card">
+    <b>Calibración</b>
+    <p class="hint">Apoya el celular <b>de pie contra una pared o marco de puerta</b> (vertical) y toca calibrar. Así el ángulo 0° queda exacto.</p>
+    <div class="two">
+      <button class="sec" id="btnCal">Calibrar 0°</button>
+      <button class="sec" id="btnCalReset">Borrar calibración</button>
+    </div>
+    <p class="hint" id="calTxt"></p>
+    <p class="hint">Versión <span id="ver"></span></p>
+    <p class="hint">Consejos: la altura del celular es del suelo a la cámara (≈ altura de tus ojos menos 10 cm). Mantén los codos pegados al cuerpo. Funciona mejor entre 2 y 30 m y con suelo plano.</p>
+  </div>
+</section>
+
+<!-- ============ AR ============ -->
+<section id="ar">
+  <div class="card">
+    <b style="font-size:22px">Medir con realidad aumentada</b>
+    <p class="hint">Mueve el celular lentamente para que detecte el suelo o las superficies. Apunta el círculo al punto A, toca <b>Marcar</b>, luego al punto B y vuelve a marcar.</p>
+    <p class="hint">Te muestra la distancia total, la horizontal y la vertical (sirve como altura).</p>
+    <div id="arSupport" class="msg">Revisando compatibilidad…</div>
+    <button class="big" id="btnAR" disabled>▶ Iniciar AR</button>
+  </div>
+  <div class="card" id="arLastCard" style="display:none">
+    <b>Última medición AR</b>
+    <div class="grid">
+      <div class="met"><small>Distancia</small><b id="arLD">—</b></div>
+      <div class="met"><small>Vertical</small><b id="arLV">—</b></div>
+    </div>
+    <input type="text" id="nameAR" placeholder="Nombre (ej: ancho portón)" style="margin-top:10px">
+    <button class="big" id="btnSaveAR">💾 Guardar</button>
+    <div id="msgAR"></div>
+  </div>
+</section>
+
+<!-- ============ HISTORIAL ============ -->
+<section id="hist">
+  <div id="histList"></div>
+  <div class="two">
+    <button class="sec" id="btnCSV">⬇ Exportar CSV</button>
+    <button class="sec" id="btnClear">🗑 Borrar todo</button>
+  </div>
+</section>
+</main>
+
+<!-- Overlay de AR (dom-overlay) -->
+<div id="arOverlay">
+  <svg id="arSvg"></svg>
+  <div id="arInfo">Buscando superficie…</div>
+  <div id="arBtns">
+    <button class="mark" id="arMark">🎯 Marcar A</button>
+    <button id="arUndo">↶ Deshacer</button>
+    <button id="arExit">✕ Salir</button>
+  </div>
+</div>
+
+<script>
+const VERSION = '1.0';
+const $ = s => document.querySelector(s);
+const fmt = (v, dec = 2) => (v == null || !isFinite(v)) ? '—' :
+  v.toLocaleString('es-CL', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+const fm = v => (v == null || !isFinite(v)) ? '—' : fmt(v) + ' m';
+const RAD = Math.PI / 180;
+
+/* ---------- Ajustes guardados ---------- */
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem('med_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('med_' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+};
+let offset = LS.get('offset', 0);
+$('#hCel').value = LS.get('hCel', 1.5);
+$('#hCel').onchange = () => { LS.set('hCel', parseFloat($('#hCel').value) || 1.5); upd(); };
+$('#chkD').onchange = () => { $('#rowD').style.display = $('#chkD').checked ? 'flex' : 'none'; reset(); };
+$('#dMan').oninput = upd;
+function calTxt() { $('#calTxt').textContent = offset ? `Corrección aplicada: ${fmt(offset, 1)}°` : 'Sin calibración.'; }
+calTxt();
+$('#ver').textContent = VERSION;
+
+/* ---------- Pestañas ---------- */
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === b.dataset.s));
+  if (b.dataset.s === 'hist') renderHist();
+  if (b.dataset.s !== 'incl') stopCam();
+});
+
+/* =================================================
+   MODO 1: INCLINACIÓN (cámara + sensor)
+   ================================================= */
+let stream = null, raw = null, smooth = null, buf = [];
+async function startCam() {
+  try {
+    window.addEventListener('deviceorientation', onOri);
+    if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+      try { await DeviceOrientationEvent.requestPermission(); } catch (e) {} // iPhone pide permiso aquí
+    }
+    stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: {ideal: 'environment'}}, audio: false});
+    $('#vid').srcObject = stream;
+    $('#startBox').style.display = 'none';
+    setTimeout(() => { if (raw == null) msg('#msgIncl', 'Este dispositivo no está entregando el ángulo de inclinación.', true); }, 2500);
+  } catch (e) {
+    msg('#msgIncl', 'No se pudo iniciar: ' + e.message + '. La página debe abrirse con https.', true);
+  }
+}
+function stopCam() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; $('#startBox').style.display = 'flex'; }
+}
+$('#btnStart').onclick = startCam;
+
+// Ángulo de la cámara trasera respecto al horizonte: + arriba, − abajo
+function onOri(e) {
+  if (e.beta == null) return;
+  const v = -Math.cos(e.beta * RAD) * Math.cos((e.gamma || 0) * RAD);
+  raw = Math.asin(Math.max(-1, Math.min(1, v))) / RAD;
+  smooth = smooth == null ? raw : smooth + 0.2 * (raw - smooth);
+  buf.push(raw); if (buf.length > 20) buf.shift();
+}
+const angle = () => smooth == null ? null : smooth + offset;
+function avgAngle() { return buf.length ? buf.reduce((a, b) => a + b, 0) / buf.length + offset : null; }
+function stdDev() {
+  if (buf.length < 5) return 99;
+  const m = buf.reduce((a, b) => a + b, 0) / buf.length;
+  return Math.sqrt(buf.reduce((a, b) => a + (b - m) ** 2, 0) / buf.length);
+}
+
+// Estado: paso 0 = base, 1 = punta, 2 = listo
+let step = 0, angBase = null, angTop = null, dist = null, alt = null, foto = null;
+const hC = () => parseFloat($('#hCel').value) || 1.5;
+const known = () => $('#chkD').checked;
+function distFrom(a) { return a < -0.5 ? hC() / Math.tan(-a * RAD) : null; }
+function heightFrom(d, a) { return d == null ? null : hC() + d * Math.tan(a * RAD); }
+
+function upd() {
+  const a = angle();
+  if (step === 0 && known()) step = 1;
+  let d = dist, h = alt;
+  if (step === 0) d = a == null ? null : distFrom(a);
+  if (known()) d = parseFloat($('#dMan').value) || null;
+  if (step === 1 && a != null) h = heightFrom(d, a);
+  $('#outD').textContent = fm(d); $('#outD').classList.toggle('dim', step === 0 && !known());
+  $('#outH').textContent = fm(h); $('#outH').classList.toggle('dim', step < 2);
+  $('#inst').textContent = step === 0 ? 'Paso 1: apunta a la BASE (donde toca el suelo)'
+                        : step === 1 ? 'Paso 2: apunta a la PUNTA'
+                        : 'Listo ✔  Guarda o reinicia';
+  $('#btnMark').textContent = step === 0 ? '🎯 Marcar base' : step === 1 ? '🎯 Marcar punta' : '🎯 Medir otra punta';
+  $('#btnSave').disabled = step < 2;
+}
+function loop() {
+  const a = angle();
+  $('#angBadge').textContent = a == null ? '--°' : (a > 0 ? '+' : '') + fmt(a, 1) + '°';
+  const s = stdDev(), st = $('#stab');
+  st.textContent = s < 0.35 ? 'estable' : 'moviendo'; st.classList.toggle('ok', s < 0.35);
+  upd();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+$('#btnMark').onclick = () => {
+  const a = avgAngle();
+  if (a == null) return msg('#msgIncl', 'Primero activa la cámara.', true);
+  msg('#msgIncl', '');
+  if (step === 0) {
+    const d = distFrom(a);
+    if (d == null) return msg('#msgIncl', 'Para marcar la base tienes que apuntar hacia abajo (ángulo negativo).', true);
+    angBase = a; dist = d; step = 1;
+  } else {
+    if (known()) dist = parseFloat($('#dMan').value);
+    angTop = a; alt = heightFrom(dist, a); foto = snap(); step = 2;
+  }
+  navigator.vibrate && navigator.vibrate(40);
+  upd();
+};
+function reset() { step = 0; angBase = angTop = dist = alt = foto = null; msg('#msgIncl', ''); upd(); }
+$('#btnReset').onclick = reset;
+
+function snap() {
+  const v = $('#vid'); if (!v.videoWidth) return null;
+  const c = document.createElement('canvas'), w = 240, h = Math.round(w * v.videoHeight / v.videoWidth);
+  c.width = w; c.height = h; c.getContext('2d').drawImage(v, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', 0.6);
+}
+
+$('#btnSave').onclick = () => {
+  addHist({tipo: 'Inclinación', nombre: $('#nameIncl').value.trim(), dist, alt, hCel: hC(),
+           angBase, angTop, foto, distConocida: known()});
+  $('#nameIncl').value = '';
+  msg('#msgIncl', 'Medición guardada en el historial.');
+  reset();
+};
+
+$('#btnCal').onclick = () => {
+  if (!buf.length) return msg('#msgIncl', 'Primero activa la cámara.', true);
+  offset = -(buf.reduce((a, b) => a + b, 0) / buf.length);
+  LS.set('offset', offset); calTxt();
+};
+$('#btnCalReset').onclick = () => { offset = 0; LS.set('offset', 0); calTxt(); };
+
+/* =================================================
+   MODO 2: REALIDAD AUMENTADA (WebXR + hit-test)
+   ================================================= */
+let xrS = null, gl = null, refSp = null, hitSrc = null, cur = null, ptA = null, meas = [];
+(async () => {
+  let ok = false;
+  try { ok = !!(navigator.xr && await navigator.xr.isSessionSupported('immersive-ar')); } catch (e) {}
+  $('#arSupport').textContent = ok
+    ? 'Tu celular es compatible con AR ✔'
+    : 'Este celular o navegador no es compatible con AR. Usa Chrome en Android con "Servicios de Google Play para AR" (ARCore) instalado.';
+  $('#arSupport').classList.toggle('err', !ok);
+  $('#btnAR').disabled = !ok;
+})();
+
+$('#btnAR').onclick = async () => {
+  stopCam();
+  try {
+    const ov = $('#arOverlay');
+    xrS = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay'], domOverlay: {root: ov}});
+    ov.classList.add('on');
+    const cv = document.createElement('canvas');
+    gl = cv.getContext('webgl', {xrCompatible: true, alpha: true});
+    await gl.makeXRCompatible?.();
+    xrS.updateRenderState({baseLayer: new XRWebGLLayer(xrS, gl)});
+    refSp = await xrS.requestReferenceSpace('local');
+    const viewer = await xrS.requestReferenceSpace('viewer');
+    hitSrc = await xrS.requestHitTestSource({space: viewer});
+    xrS.addEventListener('end', arEnd);
+    ptA = null; meas = []; arBtnTxt();
+    xrS.requestAnimationFrame(arFrame);
+  } catch (e) {
+    $('#arSupport').textContent = 'No se pudo iniciar AR: ' + e.message;
+    $('#arSupport').classList.add('err');
+  }
+};
+// Evita que tocar los botones dispare eventos de AR
+$('#arOverlay').addEventListener('beforexrselect', e => e.preventDefault());
+
+function arEnd() {
+  $('#arOverlay').classList.remove('on');
+  hitSrc = null; xrS = null;
+  const last = meas[meas.length - 1];
+  if (last) {
+    $('#arLastCard').style.display = 'block';
+    $('#arLD').textContent = fm(last.d); $('#arLV').textContent = fm(last.v);
+  }
+}
+$('#arExit').onclick = () => xrS && xrS.end();
+$('#arUndo').onclick = () => { if (ptA) ptA = null; else meas.pop(); arBtnTxt(); };
+$('#arMark').onclick = () => {
+  if (!cur) return;
+  if (!ptA) ptA = {...cur};
+  else { meas.push(segment(ptA, {...cur})); ptA = null; }
+  navigator.vibrate && navigator.vibrate(40);
+  arBtnTxt();
+};
+function arBtnTxt() { $('#arMark').textContent = ptA ? '🎯 Marcar B' : '🎯 Marcar A'; }
+function segment(a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+  return {a, b, d: Math.hypot(dx, dy, dz), h: Math.hypot(dx, dz), v: Math.abs(dy)};
+}
+
+function mul(a, b) { // matrices 4x4 column-major
+  const o = new Float32Array(16);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+    let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s;
+  }
+  return o;
+}
+function proj(M, p) {
+  const x = M[0]*p.x + M[4]*p.y + M[8]*p.z + M[12], y = M[1]*p.x + M[5]*p.y + M[9]*p.z + M[13],
+        w = M[3]*p.x + M[7]*p.y + M[11]*p.z + M[15];
+  if (w <= 0.01) return null;
+  return {x: (x / w + 1) / 2 * innerWidth, y: (1 - y / w) / 2 * innerHeight};
+}
+
+function arFrame(t, frame) {
+  if (!xrS) return;
+  xrS.requestAnimationFrame(arFrame);
+  const L = xrS.renderState.baseLayer;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, L.framebuffer);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  const pose = frame.getViewerPose(refSp); if (!pose) return;
+  const view = pose.views[0];
+  const M = mul(view.projectionMatrix, view.transform.inverse.matrix);
+  cur = null;
+  if (hitSrc) {
+    const hits = frame.getHitTestResults(hitSrc);
+    if (hits.length) { const p = hits[0].getPose(refSp).transform.position; cur = {x: p.x, y: p.y, z: p.z}; }
+  }
+  drawAR(M);
+}
+
+function drawAR(M) {
+  let s = '';
+  const line = (a, b, col, dash, label) => {
+    const A = proj(M, a), B = proj(M, b); if (!A || !B) return;
+    s += `<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke="${col}" stroke-width="5" ${dash ? 'stroke-dasharray="12 8"' : ''}/>`;
+    if (label) {
+      const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+      s += `<rect x="${mx - 62}" y="${my - 24}" width="124" height="44" rx="10" fill="rgba(0,0,0,.7)"/>
+            <text x="${mx}" y="${my + 8}" fill="#fff" font-size="24" font-weight="700" text-anchor="middle">${label}</text>`;
+    }
+  };
+  const dot = (p, col) => { const P = proj(M, p); if (P) s += `<circle cx="${P.x}" cy="${P.y}" r="10" fill="${col}" stroke="#fff" stroke-width="3"/>`; };
+  meas.forEach(m => { line(m.a, m.b, '#5DCAA5', false, fm(m.d)); dot(m.a, '#1D9E75'); dot(m.b, '#1D9E75'); });
+  if (ptA) { dot(ptA, '#EF9F27'); if (cur) line(ptA, cur, '#FAC775', true, fm(segment(ptA, cur).d)); }
+  if (cur) {
+    const P = proj(M, cur);
+    if (P) s += `<circle cx="${P.x}" cy="${P.y}" r="26" fill="none" stroke="#fff" stroke-width="4"/>
+                 <circle cx="${P.x}" cy="${P.y}" r="4" fill="#fff"/>`;
+  }
+  $('#arSvg').innerHTML = s;
+
+  let info;
+  if (!cur) info = 'Buscando superficie… mueve el celular lentamente';
+  else if (ptA) { const g = segment(ptA, cur);
+    info = `Distancia <b>${fm(g.d)}</b><br>Horizontal ${fm(g.h)} · Vertical ${fm(g.v)}`; }
+  else if (meas.length) { const g = meas[meas.length - 1];
+    info = `Última: <b>${fm(g.d)}</b><br>Horizontal ${fm(g.h)} · Vertical ${fm(g.v)}`; }
+  else info = 'Apunta el círculo al punto A y marca';
+  $('#arInfo').innerHTML = info;
+}
+
+$('#btnSaveAR').onclick = () => {
+  const m = meas[meas.length - 1]; if (!m) return;
+  addHist({tipo: 'AR', nombre: $('#nameAR').value.trim(), dist: m.d, horiz: m.h, alt: m.v});
+  $('#nameAR').value = ''; msg('#msgAR', 'Medición guardada en el historial.');
+};
+
+/* =================================================
+   HISTORIAL
+   ================================================= */
+function addHist(o) {
+  const h = LS.get('hist', []);
+  h.unshift({id: Date.now(), fecha: new Date().toISOString(), ...o});
+  if (!LS.set('hist', h)) { h[0].foto = null; LS.set('hist', h); } // sin espacio: guarda sin foto
+}
+function renderHist() {
+  const h = LS.get('hist', []);
+  $('#histList').innerHTML = h.length ? h.map(x => `
+    <div class="card hi">
+      ${x.foto ? `<img src="${x.foto}" alt="">` : ''}
+      <div class="t">
+        <b>${esc(x.nombre) || 'Sin nombre'}</b>
+        <div>${new Date(x.fecha).toLocaleString('es-CL', {dateStyle: 'short', timeStyle: 'short'})} · ${x.tipo}</div>
+        <div>Distancia: <b style="color:var(--tx)">${fm(x.dist)}</b></div>
+        <div>${x.tipo === 'AR' ? 'Vertical' : 'Altura'}: <b style="color:var(--tx)">${fm(x.alt)}</b></div>
+      </div>
+      <button class="del" data-id="${x.id}" aria-label="Borrar">✕</button>
+    </div>`).join('') : '<div class="card hint">Todavía no hay mediciones guardadas.</div>';
+  document.querySelectorAll('.del').forEach(b => b.onclick = () => {
+    LS.set('hist', LS.get('hist', []).filter(x => x.id != b.dataset.id)); renderHist();
+  });
+}
+const esc = s => (s || '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+$('#btnClear').onclick = () => { if (confirm('¿Borrar todo el historial?')) { LS.set('hist', []); renderHist(); } };
+$('#btnCSV').onclick = () => {
+  const h = LS.get('hist', []);
+  const n = v => v == null ? '' : String(Math.round(v * 1000) / 1000).replace('.', ',');
+  const rows = [['Fecha', 'Nombre', 'Modo', 'Distancia_m', 'Altura_o_vertical_m', 'Altura_celular_m', 'Ang_base', 'Ang_punta']]
+    .concat(h.map(x => [x.fecha, x.nombre || '', x.tipo, n(x.dist), n(x.alt), n(x.hCel), n(x.angBase), n(x.angTop)]));
+  const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
+  a.download = 'mediciones.csv'; a.click();
+};
+
+function msg(sel, t, err) { $(sel).innerHTML = t ? `<div class="msg ${err ? 'err' : ''}">${t}</div>` : ''; }
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
